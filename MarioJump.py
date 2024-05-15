@@ -7,8 +7,8 @@ try:
     SCREEN = pygame.display.set_mode((600, 600))
     pygame.display.set_caption("Mario Jumps")
 
-    X_initial = 290
-    Y_initial = 450
+    X_initial = 300
+    Y_initial = 480
     X_POSITION, Y_POSITION = X_initial, Y_initial
     jumping = False
     Y_GRAVITY = 0.5
@@ -26,7 +26,7 @@ try:
     BACKGROUND = pygame.transform.scale(pygame.image.load("assets/bg.png"), (600, 600))
 
     # Define ground level
-    GROUND_LEVEL = 498
+    GROUND_LEVEL = 480
 
     jump = standing.get_rect(center=(X_POSITION, Y_POSITION))
 
@@ -54,10 +54,11 @@ try:
         if keys_pressed[pygame.K_RIGHT]:
             X_POSITION += 5
             jumping_surface = right_jump
+
+          #reset position to initial position
         if keys_pressed[pygame.K_DOWN]:
             X_POSITION = X_initial
-            # Y_POSITION = Y_initial  # Remove this line to keep Mario at the landing position
-            jumping = False
+            Y_POSITION = Y_initial
             Y_VELOCITY = MIN_JUMP_HEIGHT
             jump_count = 0
 
