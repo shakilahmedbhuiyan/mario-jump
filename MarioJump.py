@@ -8,13 +8,26 @@ def init():
     return screen
 
 def load_assets():
-    assets = {
-        "standing": pygame.transform.scale(pygame.image.load("assets/standing.png"), (52, 86)),
-        "right_jump": pygame.transform.scale(pygame.image.load("assets/jumping_right.png"), (50, 58)),
-        "left_jump": pygame.transform.scale(pygame.image.load("assets/jumping_left.png"), (50, 58)),
-        "background": pygame.transform.scale(pygame.image.load("assets/bg.png"), (600, 600)),
-    }
-    return assets
+    assets = {}
+    error_messages = []
+    try:
+        assets["standing"] = pygame.transform.scale(pygame.image.load("assets/standing.png"), (52, 86))
+    except pygame.error:
+        error_messages.append("Error loading standing.png")
+    try:
+        assets["right_jump"] = pygame.transform.scale(pygame.image.load("assets/jumping_right.png"), (50, 58))
+    except pygame.error:
+        error_messages.append("Error loading jumping_right.png")
+    try:
+        assets["left_jump"] = pygame.transform.scale(pygame.image.load("assets/jumping_left.png"), (50, 58))
+    except pygame.error:
+        error_messages.append("Error loading jumping_left.png")
+    try:
+        assets["background"] = pygame.transform.scale(pygame.image.load("assets/bg.png"), (600, 600))
+    except pygame.error:
+        error_messages.append("Error loading bg.png")
+
+    return assets, error_messages
 
 def handle_events():
     for event in pygame.event.get():
@@ -33,11 +46,11 @@ def handle_input(keys_pressed, state):
     if keys_pressed[pygame.K_LEFT]:
         state["x_position"] -= 5
         if state["jumping"]:
-            state["jumping_surface"] = state["assets"]["left_jump"]
+            state["jumping_surface"] = state["assets"].get("left_jump", state["jumping_surface"])
     if keys_pressed[pygame.K_RIGHT]:
         state["x_position"] += 5
         if state["jumping"]:
-            state["jumping_surface"] = state["assets"]["right_jump"]
+            state["jumping_surface"] = state["assets"].get("right_jump", state["jumping_surface"])
     if keys_pressed[pygame.K_DOWN]:
         state["x_position"] = state["x_initial"]
         state["y_position"] = state["y_initial"]
@@ -53,7 +66,7 @@ def update_jump(state):
             state["jumping"] = False
             state["y_velocity"] = state["min_jump_height"]
     else:
-        state["jumping_surface"] = state["assets"]["standing"]
+        state["jumping_surface"] = state["assets"].get("standing", state["jumping_surface"])
     return state
 
 def check_collision(state):
@@ -65,29 +78,32 @@ def check_collision(state):
 
 def reset_jump_count(state):
     current_time = pygame.time.get_ticks()
-    if current_time - state["last_jump_time"] > 1500:
+    if current_time - state["last_jump_time"] > 1600:
         state["jump_count"] = 0
     return state
 
-def render(screen, assets, state):
-    screen.blit(assets["background"], (0, 0))
+def render(screen, assets, state, error_messages):
+    screen.blit(assets.get("background", pygame.Surface((600, 600))), (0, 0))
     text = state["font"].render(f"Jump Count: {state['jump_count']}", True, (255, 255, 255))
     screen.blit(text, (10, 10))
     state["jump"] = state["jumping_surface"].get_rect(center=(state["x_position"], state["y_position"]))
     screen.blit(state["jumping_surface"], state["jump"])
+    if error_messages:
+        error_text = state["font"].render(" | ".join(error_messages), True, (255, 0, 0))
+        screen.blit(error_text, (50, 550))
     pygame.display.update()
 
 def main():
     screen = init()
-    assets = load_assets()
+    assets, error_messages = load_assets()
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
 
     state = {
         "x_initial": 300,
-        "y_initial": 490,
+        "y_initial": 480,
         "x_position": 300,
-        "y_position": 490,
+        "y_position": 480,
         "jumping": False,
         "y_gravity": 0.5,
         "min_jump_height": 7,
@@ -96,8 +112,8 @@ def main():
         "ground_level": 480,
         "jump_count": 0,
         "last_jump_time": 0,
+        "jumping_surface": assets.get("standing", pygame.Surface((52, 86))),  # Default to a blank surface if asset is missing
         "assets": assets,
-        "jumping_surface": assets["standing"],
         "font": font,
     }
 
@@ -108,7 +124,7 @@ def main():
         state = update_jump(state)
         state = check_collision(state)
         state = reset_jump_count(state)
-        render(screen, assets, state)
+        render(screen, assets, state, error_messages)
         clock.tick(60)
 
 if __name__ == "__main__":
