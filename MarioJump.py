@@ -1,104 +1,115 @@
 import sys
 import pygame
 
-try:
+def init():
     pygame.init()
-    CLOCK = pygame.time.Clock()
-    SCREEN = pygame.display.set_mode((600, 600))
+    screen = pygame.display.set_mode((600, 600))
     pygame.display.set_caption("Mario Jumps")
+    return screen
 
-    X_initial = 300
-    Y_initial = 480
-    X_POSITION, Y_POSITION = X_initial, Y_initial
-    jumping = False
-    Y_GRAVITY = 0.5
-    MIN_JUMP_HEIGHT = 7
-    MAX_JUMP_HEIGHT = 22  # Maximum jump height
-    Y_VELOCITY = MIN_JUMP_HEIGHT
-    MAX_JUMP_DURATION = 2000  # Maximum duration of continuous jumping (in milliseconds)
-    jump_count = 0  # Number of consecutive jumps
-    last_jump_time = 0  # Time of the last jump
+def load_assets():
+    assets = {
+        "standing": pygame.transform.scale(pygame.image.load("assets/standing.png"), (52, 86)),
+        "right_jump": pygame.transform.scale(pygame.image.load("assets/jumping_right.png"), (50, 58)),
+        "left_jump": pygame.transform.scale(pygame.image.load("assets/jumping_left.png"), (50, 58)),
+        "background": pygame.transform.scale(pygame.image.load("assets/bg.png"), (600, 600)),
+    }
+    return assets
 
-    standing = pygame.transform.scale(pygame.image.load("assets/standing.png"), (52, 86))
-    right_jump = pygame.transform.scale(pygame.image.load("assets/jumping_right.png"), (50, 58))
-    left_jump = pygame.transform.scale(pygame.image.load("assets/jumping_left.png"), (50, 58))
-    jumping_surface = right_jump
-    BACKGROUND = pygame.transform.scale(pygame.image.load("assets/bg.png"), (600, 600))
+def handle_events():
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
 
-    # Define ground level
-    GROUND_LEVEL = 480
+def handle_input(keys_pressed, state):
+    if keys_pressed[pygame.K_SPACE] and not state["jumping"]:
+        state["jumping"] = True
+        state["jump_count"] += 1
+        state["last_jump_time"] = pygame.time.get_ticks()
+        state["y_velocity"] = state["min_jump_height"] + state["jump_count"] * 2
+        if state["y_velocity"] > state["max_jump_height"]:
+            state["y_velocity"] = state["max_jump_height"]
+    if keys_pressed[pygame.K_LEFT]:
+        state["x_position"] -= 5
+        if state["jumping"]:
+            state["jumping_surface"] = state["assets"]["left_jump"]
+    if keys_pressed[pygame.K_RIGHT]:
+        state["x_position"] += 5
+        if state["jumping"]:
+            state["jumping_surface"] = state["assets"]["right_jump"]
+    if keys_pressed[pygame.K_DOWN]:
+        state["x_position"] = state["x_initial"]
+        state["y_position"] = state["y_initial"]
+        state["y_velocity"] = state["min_jump_height"]
+        state["jump_count"] = 0
+    return state
 
-    jump = standing.get_rect(center=(X_POSITION, Y_POSITION))
+def update_jump(state):
+    if state["jumping"]:
+        state["y_position"] -= state["y_velocity"]
+        state["y_velocity"] -= state["y_gravity"]
+        if state["y_velocity"] < -state["min_jump_height"] and state["y_position"] >= state["ground_level"] - state["jump"].height / 2.5:
+            state["jumping"] = False
+            state["y_velocity"] = state["min_jump_height"]
+    else:
+        state["jumping_surface"] = state["assets"]["standing"]
+    return state
 
-    font = pygame.font.Font(None, 36)  # Choose font and size for the text
+def check_collision(state):
+    if state["y_position"] >= state["ground_level"]:
+        state["y_position"] = state["ground_level"]
+        state["jumping"] = False
+        state["y_velocity"] = state["min_jump_height"]
+    return state
+
+def reset_jump_count(state):
+    current_time = pygame.time.get_ticks()
+    if current_time - state["last_jump_time"] > 1500:
+        state["jump_count"] = 0
+    return state
+
+def render(screen, assets, state):
+    screen.blit(assets["background"], (0, 0))
+    text = state["font"].render(f"Jump Count: {state['jump_count']}", True, (255, 255, 255))
+    screen.blit(text, (10, 10))
+    state["jump"] = state["jumping_surface"].get_rect(center=(state["x_position"], state["y_position"]))
+    screen.blit(state["jumping_surface"], state["jump"])
+    pygame.display.update()
+
+def main():
+    screen = init()
+    assets = load_assets()
+    clock = pygame.time.Clock()
+    font = pygame.font.Font(None, 36)
+
+    state = {
+        "x_initial": 300,
+        "y_initial": 490,
+        "x_position": 300,
+        "y_position": 490,
+        "jumping": False,
+        "y_gravity": 0.5,
+        "min_jump_height": 7,
+        "max_jump_height": 22,
+        "y_velocity": 7,
+        "ground_level": 480,
+        "jump_count": 0,
+        "last_jump_time": 0,
+        "assets": assets,
+        "jumping_surface": assets["standing"],
+        "font": font,
+    }
 
     while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
+        handle_events()
         keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[pygame.K_SPACE] and not jumping:
-            jumping = True
-            jump_count += 1
-            last_jump_time = pygame.time.get_ticks()
-            # Adjust jump height based on jump count
-            Y_VELOCITY = MIN_JUMP_HEIGHT + jump_count * 2
-            if Y_VELOCITY > MAX_JUMP_HEIGHT:
-                Y_VELOCITY = MAX_JUMP_HEIGHT
+        state = handle_input(keys_pressed, state)
+        state = update_jump(state)
+        state = check_collision(state)
+        state = reset_jump_count(state)
+        render(screen, assets, state)
+        clock.tick(60)
 
-        if keys_pressed[pygame.K_LEFT]:
-            X_POSITION -= 5
-            jumping_surface = left_jump
-        if keys_pressed[pygame.K_RIGHT]:
-            X_POSITION += 5
-            jumping_surface = right_jump
-
-          #reset position to initial position
-        if keys_pressed[pygame.K_DOWN]:
-            X_POSITION = X_initial
-            Y_POSITION = Y_initial
-            Y_VELOCITY = MIN_JUMP_HEIGHT
-            jump_count = 0
-
-        SCREEN.blit(BACKGROUND, (0, 0))
-
-        if jumping:
-            Y_POSITION -= Y_VELOCITY
-            Y_VELOCITY -= Y_GRAVITY
-
-            if Y_VELOCITY < -MIN_JUMP_HEIGHT and Y_POSITION >= GROUND_LEVEL - jump.height / 2.5:
-                jumping = False
-                Y_VELOCITY = MIN_JUMP_HEIGHT
-
-            jump = jumping_surface.get_rect(center=(X_POSITION, Y_POSITION))
-        else:
-            jumping_surface = standing
-            # X_POSITION = X_initial  # Remove this line to keep Mario at the landing position
-            # Y_POSITION = Y_initial  # Remove this line to keep Mario at the landing position
-            jump = jumping_surface.get_rect(center=(X_POSITION, Y_POSITION))
-
-        # Check collision with ground
-        if jump.bottom >= GROUND_LEVEL:
-            Y_POSITION = GROUND_LEVEL - jump.height / 2.5
-            jumping = False
-            Y_VELOCITY = MIN_JUMP_HEIGHT
-
-        # Reset jump count after 1 second of last jump
-        current_time = pygame.time.get_ticks()
-        if current_time - last_jump_time > 1700:
-            jump_count = 0
-
-        # Render jump count text
-        text = font.render(f"Jump Count: {jump_count}", True, (255, 255, 255))
-        SCREEN.blit(text, (10, 10))  # Position the text on the screen
-
-        SCREEN.blit(jumping_surface, jump)
-        pygame.display.update()
-        CLOCK.tick(60)
-
-except Exception as e:
-    print("An error occurred:", e)
-    pygame.quit()
-    sys.exit()
+if __name__ == "__main__":
+    main()
